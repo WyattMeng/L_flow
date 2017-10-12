@@ -18,6 +18,17 @@ from openpyxl.utils import get_column_letter, column_index_from_string
 import datetime 
 import  time  
 
+import tkFileDialog
+
+default_dir = r"%USERPROFILE%\Desktop"  # 设置默认打开目录
+PBC = tkFileDialog.askopenfilename(title=u"选择文件",
+                                     initialdir=(os.path.expanduser(default_dir)))
+
+WP = tkFileDialog.askopenfilename(title=u"选择文件",
+                                     initialdir=(os.path.expanduser(default_dir)))
+
+
+
 def stringToDate(string): 
     #example '2013-07-22 09:44:15+00:00' 
     dt = datetime.datetime.strptime(string, "%Y-%m-%d") 
@@ -68,12 +79,12 @@ cyEnd   = stringToDate('2016-12-31')#'2015-12-31'
 cyEndStr = '2016-12-31'
 print cyStart + datetime.timedelta(days=365*5)
 
-for root, dirs, files in os.walk(path):
-    for file in files:
-        if file.decode('gbk').find('~$') == -1 and file.decode('gbk').find('PBC') != -1: # eliminate temp excel files
-            PBC = os.path.join(root,file.decode('gbk'))
-        if file.decode('gbk').find('~$') == -1 and file.decode('gbk').find('WP') != -1:
-            WP = os.path.join(root,file.decode('gbk'))
+#for root, dirs, files in os.walk(path):
+#    for file in files:
+#        if file.decode('gbk').find('~$') == -1 and file.decode('gbk').find('PBC') != -1: # eliminate temp excel files
+#            PBC = os.path.join(root,file.decode('gbk'))
+#        if file.decode('gbk').find('~$') == -1 and file.decode('gbk').find('WP') != -1:
+#            WP = os.path.join(root,file.decode('gbk'))
             
 #print PBC.encode('utf-8')
 #print WP.encode('utf-8') 
@@ -125,7 +136,7 @@ for sheet_name in xl.sheet_names:#PBC的每个sheet L110-无形资产清单  L12
     df_rel[u'EY累计摊销额']    = df_rel.apply(lambda row: row[u'每月摊销金额']*row[u'累计摊销月份'], axis=1)
     df_rel[u'DIFF']           = df_rel.apply(lambda row: row[u'EY累计摊销额']-row[u'累计摊销额'], axis=1)
     df_rel[u'本年摊销金额']    = df_rel.apply(lambda row: row[u'每月摊销金额']*row[u'本年摊销月份'], axis=1)
-    df_rel[u'新增抽样标志']    = df_rel.apply(lambda row: 'Y' if row[u'本年新增标志'] == 1 and row[u'原始成本'] > , axis=1)
+    df_rel[u'新增抽样标志']    = df_rel.apply(lambda row: 'Y' if (row[u'本年新增标志'] == 1 and row[u'原始成本'] > 10000) else '', axis=1)
     
     df_rel.to_excel('res.xlsx')
     

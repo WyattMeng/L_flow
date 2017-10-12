@@ -11,6 +11,110 @@ import pandas as pd
 from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.utils import get_column_letter, column_index_from_string
 
+#from  datetime  import  * 
+import datetime 
+#import  time  
+
+def stringToDate(string): # datetime.datetime(2016, 12, 31, 0, 0)
+    #example '2013-07-22 09:44:15+00:00' 
+    if string.find('-') != -1:
+        dt = datetime.date.strptime(string, "%Y-%m-%d") 
+    elif string.find('/') != -1:
+        dt = datetime.date.strptime(string, "%Y/%m/%d")
+    else:
+        dt = datetime.date.strptime(string, "%Y-%m-%d")
+    return dt
+
+def intToDays(year):
+    return datetime.timedelta(days=365*int(year))
+
+def month(date):
+    if date.find('-') != -1:
+        return int(date.split('-')[1])
+    elif date.find('/') != -1:
+        return int(date.split('/')[1])
+
+def year(date):
+    if date.find('-') != -1:
+        return int(date.split('-')[0])
+    elif date.find('/') != -1:
+        return int(date.split('/')[0])
+
+def monthTotal(date):
+    return year(date)*12 + month(date)
+
+'''处理当pandas读到日期格式为pandas._libs.tslib.Timestamp的cell，转成string（）'''
+def convtPdTimeToStr(time): # datetime.date(2012, 9, 18)
+    if isinstance(time, pd._libs.tslib.Timestamp) is True:
+        dateStr = time.date().strftime('%Y-%m-%d')
+    elif isinstance(time, unicode) is True or isinstance(time, str):
+        dateStr = time
+    else:
+        dateStr = 'date type is %s' % type(time)
+    return dateStr  
+
+def convtPdTimeToDate(time):
+    if isinstance(time, pd._libs.tslib.Timestamp) is True:
+        dateStr = time.date()
+    elif isinstance(time, unicode) is True or isinstance(time, str):
+        dateStr = stringToDate(time)
+    else:
+        dateStr = 'date type is %s' % type(time)
+    return dateStr   
+
+cyStart = datetime.date(2015, 12, 31)#stringToDate('2015-12-31')#'2016-12-31'
+cyStartStr = '2015-12-31'
+cyEnd   = datetime.date(2016, 12, 31)#stringToDate('2016-12-31')#'2015-12-31'
+cyEndStr = '2016-12-31'
+
+
+PBC = 'PBCtst.xlsx'
+
+xl = pd.ExcelFile(PBC)
+df = pd.read_excel(open(PBC,'rb'), sheetname='Sheet1', header = None)
+#df = pd.read_excel(PBC, header = None)
+
+#找到“序号” 
+for x in range(0, df.shape[0]):
+    for y in range(0, df.shape[1]):
+        if df.iloc[x,y] == u'序号':
+            x_min = x
+            y_min = y
+            
+            
+#设置“序号”那行为header           
+#df_rel = pd.read_excel(PBC, header = x_min)
+df_rel = pd.read_excel(open(PBC,'rb'), sheetname='Sheet1', header = x_min)            
+
+df_rel[u'净值']           = df_rel.apply(lambda row: row[u'原始成本']-row[u'累计摊销额'], axis=1)
+df_rel[u'本年新增标志']    = df_rel.apply(lambda row: 1 if convtPdTimeToDate(row[u'开始摊销时间']) > cyStart else 0, axis=1) # and (stringToDate(row[u'开始摊销时间']) < CYend
+df_rel[u'年初摊销结束标志']= df_rel.apply(lambda row: 1 if (convtPdTimeToDate(row[u'开始摊销时间']).replace(year=convtPdTimeToDate(row[u'开始摊销时间']).year+row[u'总摊销年限'])) < cyStart else 0, axis=1)
+df_rel[u'年末摊销结束标志']= df_rel.apply(lambda row: 1 if (convtPdTimeToDate(row[u'开始摊销时间']).replace(year=convtPdTimeToDate(row[u'开始摊销时间']).year+row[u'总摊销年限'])) < cyEnd else 0, axis=1)
+df_rel[u'每月摊销金额']    = df_rel.apply(lambda row: row[u'原始成本']/(row[u'总摊销年限']*12), axis=1)
+
+df_rel[u'本年摊销月份']    = df_rel.apply(lambda row:  13 - month(convtPdTimeToStr(row[u'开始摊销时间'])) if row[u'本年新增标志'] == 1 else 
+                                                     ( 0 if row[u'年初摊销结束标志'] == 1 else 
+                                                     (  ( convtPdTimeToDate(row[u'开始摊销时间']).replace(year=convtPdTimeToDate(row[u'开始摊销时间']).year+row[u'总摊销年限']) ).month if row[u'年末摊销结束标志'] == 1 else 12 )) 
+                                         ,axis=1)
+
+
+
+
+
+df_rel[u'累计摊销月份']    = df_rel.apply(lambda row: min( monthTotal(cyEndStr) - monthTotal(convtPdTimeToStr(row[u'开始摊销时间']))+1 , row[u'总摊销年限']*12), axis=1)
+
+df_rel[u'EY累计摊销额']    = df_rel.apply(lambda row: row[u'每月摊销金额']*row[u'累计摊销月份'], axis=1)
+df_rel[u'DIFF']           = df_rel.apply(lambda row: row[u'EY累计摊销额']-row[u'累计摊销额'], axis=1)
+df_rel[u'本年摊销金额']    = df_rel.apply(lambda row: row[u'每月摊销金额']*row[u'本年摊销月份'], axis=1)
+df_rel[u'新增抽样标志']    = df_rel.apply(lambda row: row[u'每月摊销金额']*row[u'本年摊销月份'], axis=1)
+
+df_rel.to_excel('res2.xlsx')
+
+
+
+
+
+'''
 list1 = ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
 
 list2 = [u'序号', u'资产编号', u'无形资产项目', u'无形资产分类', 
@@ -32,7 +136,7 @@ for root, dirs, files in os.walk(path):
 wb = load_workbook(WP)
 ws = wb.get_sheet_by_name('L120')
 
-'''
+
 净值            =原始成本-累计摊销额
 
 本年新增标志     =if 开始摊销时间 in 本年年初~本年年末 then 1 else 0
@@ -51,7 +155,7 @@ EY累计摊销额  = 每月摊销金额*累计摊销月份
 DIFF          = EY累计摊销额-累计摊销额
 本年摊销金额  = 每月摊销金额*本年摊销月份
 新增抽样标志  = if 本年新增标志=1&&阈值&抽样比例(pending)
-'''
+
 
 
 
@@ -72,7 +176,7 @@ for i in range(11,20):
     
     
     
-'''
+
 L 本年新增标志         =  =IF(F11*1>BG!$B$5,1,0)
 M 年初摊销结束标志      =  =IF((F11+E11*365)<($B$4-365),1,0)
 N 本年处置前摊销结束标志=  =IF(M11=1,0,IF((F11+E11*365)<J11,1,0))
